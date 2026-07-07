@@ -1,0 +1,185 @@
+{
+  "metrics": {
+    "totalSales": 12827800.5,
+    "averagePrice": 128278.005,
+    "totalRecords": 100,
+    "deliveredCount": 41,
+    "deliveryRate": 41.0
+  },
+  "topModels": {
+    "Cayenne S": 6,
+    "Cayenne Coup\u00e9": 4,
+    "Taycan 4S": 4,
+    "Cayenne E-Hybrid": 4,
+    "911 Carrera": 4
+  },
+  "stateDistribution": {
+    "CA": 16,
+    "TX": 14,
+    "AZ": 7,
+    "FL": 6,
+    "NC": 5,
+    "NV": 4,
+    "OH": 4,
+    "CO": 3,
+    "GA": 3,
+    "VA": 3
+  },
+  "paymentMethods": {
+    "Transfer\u00eancia Banc\u00e1ria": 24,
+    "Dinheiro": 12,
+    "Cart\u00e3o de Cr\u00e9dito": 11,
+    "Arrendamento": 10,
+    "Financiamento": 9,
+    "Bank Wire": 7,
+    "Pagamento em Criptomoedas": 6,
+    "Cart\u00e3o de D\u00e9bito": 4,
+    "Pagamento ACH": 4,
+    "Creditcard": 4,
+    "Finance": 4,
+    "Wiretransfer": 3,
+    "Bank_Transfer": 2
+  },
+  "deliveryStatus": {
+    "Entregue": 41,
+    "Pendente": 23,
+    "Em tr\u00e2nsito": 15,
+    "Cancelado": 7,
+    "Aguardando Entrega": 5,
+    "Enviado": 4,
+    "Aguardando Recolhimento": 4,
+    "Aguardando revis\u00e3o": 1
+  },
+  "priceByModel": {
+    "718 Boxster": 73133.33333333333,
+    "718 Boxster GTS": 91500.0,
+    "718 Cayman": 76100.0,
+    "718 Cayman GT4 RS": 175000.0,
+    "718 Cayman S": 82750.0,
+    "718 Spyder RS": 166500.0,
+    "911 Carrera": 127800.0,
+    "911 Carrera GTS": 120825.0,
+    "911 Carrera S": 100450.0,
+    "911 Dakar": 270200.0,
+    "911 GT3": 232500.0,
+    "911 GT3 RS": 286500.0,
+    "911 Targa 4": 142250.0,
+    "911 Targa 4S": 157625.0,
+    "911 Turbo": 198300.0,
+    "911 Turbo S": 242100.0,
+    "Cayenne Coup\u00e9": 109062.5,
+    "Cayenne E-Hybrid": 93412.5,
+    "Cayenne S": 88191.66666666667,
+    "Cayenne Turbo": 146800.0,
+    "Cayenne Turbo GT": 197600.0,
+    "Macan": 61800.0,
+    "Macan Electric": 90025.0,
+    "Macan GTS": 95133.33333333333,
+    "Macan S": 68483.33333333333,
+    "Macan T": 75500.0,
+    "Panamera": 76100.0,
+    "Panamera 4": 102900.0,
+    "Panamera 4 E-Hybrid": 108875.0,
+    "Panamera 4S": 115500.0,
+    "Panamera Turbo": 136750.0,
+    "Panamera Turbo S": 133000.0,
+    "Taycan": 118400.0,
+    "Taycan 4S": 128575.0,
+    "Taycan Cross Turismo": 123200.0,
+    "Taycan GTS": 143166.66666666666,
+    "Taycan Turbo": 158566.83333333334,
+    "Taycan Turbo S": 216000.0
+  },
+  "recentSales": [
+    {
+      "sale_id": 96,
+      "DataDaVendaSanitizada": "2027-05-27",
+      "nome_do_cliente": "Owen Rivera",
+      "PorscheModelSanitized": "Panamera 4S",
+      "Pre\u00e7o_de_vendaSanitizado": 119000.0,
+      "EstadoSanitizado": "CA",
+      "Status_de_entrega_higienizado": "Entregue"
+    },
+    {
+      "sale_id": 97,
+      "DataDaVendaSanitizada": "INV\u00c1LIDO",
+      "nome_do_cliente": "Nora Bennett",
+      "PorscheModelSanitized": "911 GT3",
+      "Pre\u00e7o_de_vendaSanitizado": 232500.0,
+      "EstadoSanitizado": "NV",
+      "Status_de_entrega_higienizado": "Pendente"
+    },
+    {
+      "sale_id": 98,
+      "DataDaVendaSanitizada": "2027-06-18",
+      "nome_do_cliente": "Isaac Turner",
+      "PorscheModelSanitized": "Cayenne E-Hybrid",
+      "Pre\u00e7o_de_vendaSanitizado": 96800.0,
+      "EstadoSanitizado": "NC",
+      "Status_de_entrega_higienizado": "Entregue"
+    },
+    {
+      "sale_id": 99,
+      "DataDaVendaSanitizada": "2027-07-03",
+      "nome_do_cliente": "Leah Scott",
+      "PorscheModelSanitized": "Macan T",
+      "Pre\u00e7o_de_vendaSanitizado": 74400.0,
+      "EstadoSanitizado": "AZ",
+      "Status_de_entrega_higienizado": "Aguardando Recolhimento"
+    },
+    {
+      "sale_id": 100,
+      "DataDaVendaSanitizada": "2027-07-22",
+      "nome_do_cliente": "Christian Bailey",
+      "PorscheModelSanitized": "Taycan GTS",
+      "Pre\u00e7o_de_vendaSanitizado": 148500.0,
+      "EstadoSanitizado": "GA",
+      "Status_de_entrega_higienizado": "Entregue"
+    },
+    {
+      "sale_id": 101,
+      "DataDaVendaSanitizada": "2027-08-08",
+      "nome_do_cliente": "Audrey Russell",
+      "PorscheModelSanitized": "718 Boxster",
+      "Pre\u00e7o_de_vendaSanitizado": 71900.0,
+      "EstadoSanitizado": "CA",
+      "Status_de_entrega_higienizado": "Pendente"
+    },
+    {
+      "sale_id": 102,
+      "DataDaVendaSanitizada": "INV\u00c1LIDO",
+      "nome_do_cliente": "Hunter Griffin",
+      "PorscheModelSanitized": "911 Targa 4",
+      "Pre\u00e7o_de_vendaSanitizado": 143250.0,
+      "EstadoSanitizado": "CA",
+      "Status_de_entrega_higienizado": "Em tr\u00e2nsito"
+    },
+    {
+      "sale_id": 103,
+      "DataDaVendaSanitizada": "2027-09-19",
+      "nome_do_cliente": "Scarlett Diaz",
+      "PorscheModelSanitized": "Panamera Turbo",
+      "Pre\u00e7o_de_vendaSanitizado": 137500.0,
+      "EstadoSanitizado": "OK",
+      "Status_de_entrega_higienizado": "Entregue"
+    },
+    {
+      "sale_id": 104,
+      "DataDaVendaSanitizada": "2027-09-25",
+      "nome_do_cliente": "Eli Jenkins",
+      "PorscheModelSanitized": "Cayenne Turbo GT",
+      "Pre\u00e7o_de_vendaSanitizado": 204800.0,
+      "EstadoSanitizado": "KS",
+      "Status_de_entrega_higienizado": "Pendente"
+    },
+    {
+      "sale_id": 105,
+      "DataDaVendaSanitizada": "2027-10-01",
+      "nome_do_cliente": "Madison Powell",
+      "PorscheModelSanitized": "911 Dakar",
+      "Pre\u00e7o_de_vendaSanitizado": 271700.0,
+      "EstadoSanitizado": "LA",
+      "Status_de_entrega_higienizado": "Entregue"
+    }
+  ]
+}
