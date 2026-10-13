@@ -1,477 +1,224 @@
-import { useState, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import dashboardData from '@/data/dashboard.json';
-import { TrendingUp, DollarSign, Package, Truck, CreditCard, X, Filter } from 'lucide-react';
+import { useMemo, useState } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { ArrowDownToLine, CalendarDays, CarFront, ChevronLeft, ChevronRight, DollarSign, Filter, MapPin, RotateCcw, Search, Truck } from "lucide-react";
+import dashboardData from "@/data/dashboard.json";
+
+type Sale = {
+  sale_id: number;
+  DataDaVendaSanitizada: string;
+  nome_do_cliente: string;
+  PorscheModelSanitized: string;
+  Preço_de_vendaSanitizado: number;
+  EstadoSanitizado: string;
+  Status_de_entrega_higienizado: string;
+  Método_de_pagamentoSanitizado?: string;
+};
+
+const sales = dashboardData.recentSales as Sale[];
+const chartColors = ["#d71920", "#f16b70", "#f49a9d", "#c9a96e", "#8a8f98", "#e5c8c9", "#6f2528", "#b8bcc2"];
+const panelClass = "rounded-2xl border border-white/10 bg-[#151719] shadow-[0_16px_50px_rgba(0,0,0,0.22)]";
+const inputClass = "w-full rounded-lg border border-white/10 bg-[#101214] px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-red-500";
+const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+const compactCurrency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 });
+const dateFormat = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+
+function formatDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return "Data inválida";
+  return dateFormat.format(new Date(`${value}T00:00:00Z`));
+}
+
+function escapeCsv(value: unknown) {
+  const text = String(value ?? "");
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
+function MetricCard({ label, value, detail, icon: Icon }: { label: string; value: string; detail: string; icon: typeof DollarSign }) {
+  return (
+    <article className={`${panelClass} relative overflow-hidden p-5`}>
+      <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-red-700 via-red-500 to-transparent" />
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">{label}</p>
+          <p className="mt-3 text-2xl font-semibold tracking-tight text-white">{value}</p>
+          <p className="mt-1 text-xs text-gray-500">{detail}</p>
+        </div>
+        <span className="rounded-xl border border-red-500/20 bg-red-500/10 p-2.5 text-red-400"><Icon size={18} aria-hidden="true" /></span>
+      </div>
+    </article>
+  );
+}
+
+function ChartPanel({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+  return (
+    <section className={`${panelClass} min-w-0 p-5`}>
+      <div className="mb-4">
+        <h2 className="font-semibold text-white">{title}</h2>
+        <p className="mt-1 text-xs text-gray-500">{subtitle}</p>
+      </div>
+      <div className="h-[280px] w-full">{children}</div>
+    </section>
+  );
+}
 
 export default function Dashboard() {
-  const { metrics, topModels, stateDistribution, paymentMethods, deliveryStatus, priceByModel, recentSales } = dashboardData;
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [state, setState] = useState("");
+  const [model, setModel] = useState("");
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 12;
 
-  // Estado dos filtros
-  const [dateStart, setDateStart] = useState('');
-  const [dateEnd, setDateEnd] = useState('');
-  const [selectedStates, setSelectedStates] = useState<string[]>([]);
-  const [selectedModels, setSelectedModels] = useState<string[]>([]);
+  const states = useMemo(() => Array.from(new Set(sales.map((sale) => sale.EstadoSanitizado).filter((item) => item && item !== "INVÁLIDO"))).sort(), []);
+  const models = useMemo(() => Array.from(new Set(sales.map((sale) => sale.PorscheModelSanitized).filter(Boolean))).sort(), []);
 
-  // Extrair valores únicos
-  const allData = recentSales as any[];
-  const uniqueStates = useMemo(() => {
-    return Array.from(new Set(allData.map(item => item.EstadoSanitizado)))
-      .filter(s => s && s !== 'INVÁLIDO')
-      .sort();
-  }, []);
-
-  const uniqueModels = useMemo(() => {
-    return Array.from(new Set(allData.map(item => item.PorscheModelSanitized)))
-      .sort();
-  }, []);
-
-  // Filtrar dados
-  const filteredData = useMemo(() => {
-    return allData.filter(item => {
-      if (dateStart && item.DataDaVendaSanitizada < dateStart) return false;
-      if (dateEnd && item.DataDaVendaSanitizada > dateEnd) return false;
-      if (selectedStates.length > 0 && !selectedStates.includes(item.EstadoSanitizado)) return false;
-      if (selectedModels.length > 0 && !selectedModels.includes(item.PorscheModelSanitized)) return false;
+  const filteredSales = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase("pt-BR");
+    return sales.filter((sale) => {
+      const validDate = /^\d{4}-\d{2}-\d{2}$/.test(sale.DataDaVendaSanitizada);
+      if (startDate && (!validDate || sale.DataDaVendaSanitizada < startDate)) return false;
+      if (endDate && (!validDate || sale.DataDaVendaSanitizada > endDate)) return false;
+      if (state && sale.EstadoSanitizado !== state) return false;
+      if (model && sale.PorscheModelSanitized !== model) return false;
+      if (normalizedQuery) {
+        const haystack = `${sale.sale_id} ${sale.nome_do_cliente} ${sale.PorscheModelSanitized} ${sale.EstadoSanitizado} ${sale.Status_de_entrega_higienizado}`.toLocaleLowerCase("pt-BR");
+        if (!haystack.includes(normalizedQuery)) return false;
+      }
       return true;
     });
-  }, [dateStart, dateEnd, selectedStates, selectedModels]);
+  }, [startDate, endDate, state, model, query]);
 
-  // Recalcular métricas com filtros
-  const filteredMetrics = useMemo(() => {
-    const filtered = filteredData;
-    const totalSales = filtered.reduce((sum, item) => sum + (item.Preço_de_vendaSanitizado || 0), 0);
-    const avgPrice = filtered.length > 0 ? totalSales / filtered.length : 0;
-    const delivered = filtered.filter(item => item.Status_de_entrega_higienizado === 'Entregue').length;
-    const deliveryRate = filtered.length > 0 ? (delivered / filtered.length) * 100 : 0;
-
+  const metrics = useMemo(() => {
+    const revenue = filteredSales.reduce((sum, sale) => sum + (Number(sale.Preço_de_vendaSanitizado) || 0), 0);
+    const delivered = filteredSales.filter((sale) => sale.Status_de_entrega_higienizado === "Entregue").length;
     return {
-      totalSales,
-      averagePrice: avgPrice,
-      totalRecords: filtered.length,
-      deliveredCount: delivered,
-      deliveryRate,
+      revenue,
+      average: filteredSales.length ? revenue / filteredSales.length : 0,
+      count: filteredSales.length,
+      delivered,
+      deliveryRate: filteredSales.length ? (delivered / filteredSales.length) * 100 : 0,
     };
-  }, [filteredData]);
+  }, [filteredSales]);
 
-  // Gráficos baseados em dados filtrados
-  const topModelsData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    filteredData.forEach(item => {
-      counts[item.PorscheModelSanitized] = (counts[item.PorscheModelSanitized] || 0) + 1;
-    });
-    return Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([model, count]) => ({ name: model, value: count }));
-  }, [filteredData]);
+  const modelChart = useMemo(() => {
+    const counts = new Map<string, number>();
+    filteredSales.forEach((sale) => counts.set(sale.PorscheModelSanitized, (counts.get(sale.PorscheModelSanitized) ?? 0) + 1));
+    return Array.from(counts.entries()).map(([name, vendas]) => ({ name, vendas })).sort((a, b) => b.vendas - a.vendas).slice(0, 6);
+  }, [filteredSales]);
 
-  const stateData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    filteredData.forEach(item => {
-      counts[item.EstadoSanitizado] = (counts[item.EstadoSanitizado] || 0) + 1;
-    });
-    return Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([state, count]) => ({ name: state, value: count }));
-  }, [filteredData]);
+  const stateChart = useMemo(() => {
+    const counts = new Map<string, number>();
+    filteredSales.filter((sale) => sale.EstadoSanitizado && sale.EstadoSanitizado !== "INVÁLIDO").forEach((sale) => counts.set(sale.EstadoSanitizado, (counts.get(sale.EstadoSanitizado) ?? 0) + 1));
+    return Array.from(counts.entries()).map(([name, vendas]) => ({ name, vendas })).sort((a, b) => b.vendas - a.vendas).slice(0, 8);
+  }, [filteredSales]);
 
-  const paymentData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    filteredData.forEach(item => {
-      counts[item.Método_de_pagamentoSanitizado] = (counts[item.Método_de_pagamentoSanitizado] || 0) + 1;
-    });
-    return Object.entries(counts).map(([method, count]) => ({ name: method, value: count }));
-  }, [filteredData]);
+  const deliveryChart = useMemo(() => {
+    const counts = new Map<string, number>();
+    filteredSales.forEach((sale) => counts.set(sale.Status_de_entrega_higienizado || "Sem status", (counts.get(sale.Status_de_entrega_higienizado || "Sem status") ?? 0) + 1));
+    return Array.from(counts.entries()).map(([name, value]) => ({ name, value }));
+  }, [filteredSales]);
 
-  const deliveryData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    filteredData.forEach(item => {
-      counts[item.Status_de_entrega_higienizado] = (counts[item.Status_de_entrega_higienizado] || 0) + 1;
-    });
-    return Object.entries(counts).map(([status, count]) => ({ name: status, value: count }));
-  }, [filteredData]);
+  const priceChart = useMemo(() => {
+    const buckets = new Map<string, number[]>();
+    filteredSales.forEach((sale) => buckets.set(sale.PorscheModelSanitized, [...(buckets.get(sale.PorscheModelSanitized) ?? []), Number(sale.Preço_de_vendaSanitizado) || 0]));
+    return Array.from(buckets.entries()).map(([name, prices]) => ({ name, preço: prices.reduce((a: number, b: number) => a + b, 0) / prices.length })).sort((a, b) => b.preço - a.preço).slice(0, 8);
+  }, [filteredSales]);
 
-  const priceData = useMemo(() => {
-    const priceMap: Record<string, number[]> = {};
-    filteredData.forEach(item => {
-      if (!priceMap[item.PorscheModelSanitized]) {
-        priceMap[item.PorscheModelSanitized] = [];
-      }
-      priceMap[item.PorscheModelSanitized].push(item.Preço_de_vendaSanitizado);
-    });
-    return Object.entries(priceMap)
-      .map(([model, prices]) => ({
-        name: model,
-        price: Math.round(prices.reduce((a, b) => a + b, 0) / prices.length),
-      }))
-      .sort((a, b) => b.price - a.price)
-      .slice(0, 10);
-  }, [filteredData]);
+  const sortedSales = useMemo(() => [...filteredSales].sort((a, b) => b.sale_id - a.sale_id), [filteredSales]);
+  const pageCount = Math.max(1, Math.ceil(sortedSales.length / pageSize));
+  const visibleSales = sortedSales.slice((page - 1) * pageSize, page * pageSize);
+  const hasFilters = Boolean(startDate || endDate || state || model || query);
 
-  const COLORS = ['#dc2626', '#f87171', '#fca5a5', '#fecaca', '#fee2e2', '#991b1b', '#7f1d1d', '#450a0a'];
+  const resetFilters = () => {
+    setStartDate(""); setEndDate(""); setState(""); setModel(""); setQuery(""); setPage(1);
+  };
 
-  const isFiltered = dateStart || dateEnd || selectedStates.length > 0 || selectedModels.length > 0;
-
-  const clearFilters = () => {
-    setDateStart('');
-    setDateEnd('');
-    setSelectedStates([]);
-    setSelectedModels([]);
+  const downloadCsv = () => {
+    const headers = ["ID", "Data", "Cliente", "Modelo", "Preço USD", "Estado", "Entrega", "Pagamento"];
+    const rows = filteredSales.map((sale) => [sale.sale_id, sale.DataDaVendaSanitizada, sale.nome_do_cliente, sale.PorscheModelSanitized, sale.Preço_de_vendaSanitizado, sale.EstadoSanitizado, sale.Status_de_entrega_higienizado, sale.Método_de_pagamentoSanitizado ?? ""]);
+    const csv = [headers, ...rows].map((row) => row.map(escapeCsv).join(",")).join("\r\n");
+    const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url; link.download = "porsche-sales-filtrado.csv"; link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black p-6">
-      {/* Header */}
-      <div className="mb-8 border-l-4 border-red-600 pl-6">
-        <h1 className="text-4xl font-bold text-white mb-2">Porsche Sales Insights</h1>
-        <p className="text-gray-400">Real-time analytics dashboard powered by cleaned, sanitized data</p>
-      </div>
-
-      {/* Filtros */}
-      <Card className="shadow-lg mb-8 border-l-4 border-l-red-600 bg-gray-900 border-gray-800">
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Filter className="w-5 h-5 text-red-600" />
-              <CardTitle className="text-white">Filtros Avançados</CardTitle>
-            </div>
-            {isFiltered && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={clearFilters}
-                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white border-red-600"
-              >
-                <X className="w-4 h-4" />
-                Limpar Filtros
-              </Button>
-            )}
+    <main className="min-h-screen bg-[#0b0d0f] px-4 py-6 text-gray-100 sm:px-6 lg:px-10">
+      <div className="mx-auto max-w-7xl">
+        <header className="mb-8 flex flex-col justify-between gap-5 border-b border-white/10 pb-6 sm:flex-row sm:items-end">
+          <div className="border-l-2 border-red-600 pl-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-red-400">Sales intelligence · USD</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Porsche Sales Insights</h1>
+            <p className="mt-2 max-w-2xl text-sm text-gray-400">Visão interativa das vendas por modelo, região, valor e status de entrega.</p>
           </div>
-          <p className="text-sm text-gray-400 mt-2">
-            Mostrando <span className="font-semibold text-red-500">{filteredData.length}</span> de{' '}
-            <span className="font-semibold text-gray-300">{allData.length}</span> registros
-          </p>
-        </CardHeader>
+          <button onClick={downloadCsv} className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-400">
+            <ArrowDownToLine size={16} aria-hidden="true" /> Exportar CSV
+          </button>
+        </header>
 
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Filtro de Data */}
-            <div className="space-y-3">
-              <Label className="text-sm font-semibold text-gray-300">Intervalo de Data</Label>
-              <div className="space-y-2">
-                <div>
-                  <label className="text-xs text-gray-500">Data Inicial</label>
-                  <Input
-                    type="date"
-                    value={dateStart}
-                    onChange={(e) => setDateStart(e.target.value)}
-                    className="mt-1 bg-gray-800 border-gray-700 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500">Data Final</label>
-                  <Input
-                    type="date"
-                    value={dateEnd}
-                    onChange={(e) => setDateEnd(e.target.value)}
-                    className="mt-1 bg-gray-800 border-gray-700 text-white"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Filtro de Estados */}
-            <div className="space-y-3">
-              <Label className="text-sm font-semibold text-gray-300">Estados ({selectedStates.length})</Label>
-              <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-700 rounded-lg p-3 bg-gray-800">
-                {uniqueStates.map((state) => (
-                  <div key={state} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`state-${state}`}
-                      checked={selectedStates.includes(state)}
-                      onCheckedChange={() => {
-                        setSelectedStates(prev =>
-                          prev.includes(state)
-                            ? prev.filter(s => s !== state)
-                            : [...prev, state]
-                        );
-                      }}
-                      className="border-gray-600"
-                    />
-                    <label
-                      htmlFor={`state-${state}`}
-                      className="text-sm cursor-pointer text-gray-300"
-                    >
-                      {state}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Filtro de Modelos */}
-            <div className="space-y-3">
-              <Label className="text-sm font-semibold text-gray-300">Modelos ({selectedModels.length})</Label>
-              <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-700 rounded-lg p-3 bg-gray-800">
-                {uniqueModels.map((model) => (
-                  <div key={model} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`model-${model}`}
-                      checked={selectedModels.includes(model)}
-                      onCheckedChange={() => {
-                        setSelectedModels(prev =>
-                          prev.includes(model)
-                            ? prev.filter(m => m !== model)
-                            : [...prev, model]
-                        );
-                      }}
-                      className="border-gray-600"
-                    />
-                    <label
-                      htmlFor={`model-${model}`}
-                      className="text-sm cursor-pointer text-gray-300"
-                    >
-                      {model}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
+        <section className={`${panelClass} mb-6 p-5`} aria-labelledby="filters-title">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2"><Filter size={17} className="text-red-400" /><h2 id="filters-title" className="font-semibold text-white">Filtros</h2><span className="text-xs text-gray-500">{filteredSales.length} de {sales.length} registros</span></div>
+            {hasFilters && <button onClick={resetFilters} className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-300 hover:text-white"><RotateCcw size={14} /> Limpar filtros</button>}
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-        {/* Total Sales */}
-        <Card className="border-t-4 border-t-red-600 shadow-lg hover:shadow-xl transition-shadow bg-gray-900 border-gray-800">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-red-600" />
-              Total Sales
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">${(filteredMetrics.totalSales / 1000000).toFixed(2)}M</div>
-            <p className="text-xs text-gray-500 mt-1">{filteredMetrics.totalRecords} records</p>
-          </CardContent>
-        </Card>
-
-        {/* Average Price */}
-        <Card className="border-t-4 border-t-red-500 shadow-lg hover:shadow-xl transition-shadow bg-gray-900 border-gray-800">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-red-500" />
-              Avg Price
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">${(filteredMetrics.averagePrice / 1000).toFixed(0)}K</div>
-            <p className="text-xs text-gray-500 mt-1">Per vehicle</p>
-          </CardContent>
-        </Card>
-
-        {/* Total Records */}
-        <Card className="border-t-4 border-t-red-400 shadow-lg hover:shadow-xl transition-shadow bg-gray-900 border-gray-800">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2">
-              <Package className="w-4 h-4 text-red-400" />
-              Records
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">{filteredMetrics.totalRecords}</div>
-            <p className="text-xs text-gray-500 mt-1">Sanitized entries</p>
-          </CardContent>
-        </Card>
-
-        {/* Delivery Rate */}
-        <Card className="border-t-4 border-t-red-300 shadow-lg hover:shadow-xl transition-shadow bg-gray-900 border-gray-800">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2">
-              <Truck className="w-4 h-4 text-red-300" />
-              Delivered
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">{filteredMetrics.deliveryRate.toFixed(1)}%</div>
-            <p className="text-xs text-gray-500 mt-1">{filteredMetrics.deliveredCount} vehicles</p>
-          </CardContent>
-        </Card>
-
-        {/* Payment Methods */}
-        <Card className="border-t-4 border-t-red-200 shadow-lg hover:shadow-xl transition-shadow bg-gray-900 border-gray-800">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-red-200" />
-              Payment
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">{paymentData.length}</div>
-            <p className="text-xs text-gray-500 mt-1">Methods used</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Top Models */}
-        <Card className="shadow-lg bg-gray-900 border-gray-800">
-          <CardHeader>
-            <CardTitle className="text-white">Top Models</CardTitle>
-            <CardDescription className="text-gray-400">Most popular Porsche models sold</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={topModelsData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#3a3a3a" />
-                <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 12, fill: '#a0a0a0' }} />
-                <YAxis tick={{ fontSize: 12, fill: '#a0a0a0' }} />
-                <Tooltip contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #dc2626', color: '#f5f5f5' }} />
-                <Bar dataKey="value" fill="#dc2626" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Price by Model */}
-        <Card className="shadow-lg bg-gray-900 border-gray-800">
-          <CardHeader>
-            <CardTitle className="text-white">Average Price by Model</CardTitle>
-            <CardDescription className="text-gray-400">USD pricing across models</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={priceData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#3a3a3a" />
-                <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 12, fill: '#a0a0a0' }} />
-                <YAxis tick={{ fontSize: 12, fill: '#a0a0a0' }} />
-                <Tooltip contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #dc2626', color: '#f5f5f5' }} />
-                <Line type="monotone" dataKey="price" stroke="#dc2626" strokeWidth={2} dot={{ fill: '#dc2626' }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Delivery Status */}
-        <Card className="shadow-lg bg-gray-900 border-gray-800">
-          <CardHeader>
-            <CardTitle className="text-white">Delivery Status</CardTitle>
-            <CardDescription className="text-gray-400">Current order fulfillment breakdown</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie data={deliveryData} cx="50%" cy="50%" labelLine={false} label={({ name, value }) => `${name}: ${value}`} outerRadius={100} fill="#8884d8" dataKey="value">
-                  {deliveryData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #dc2626', color: '#f5f5f5' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Payment Methods */}
-        <Card className="shadow-lg bg-gray-900 border-gray-800">
-          <CardHeader>
-            <CardTitle className="text-white">Payment Methods</CardTitle>
-            <CardDescription className="text-gray-400">Customer payment preferences</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie data={paymentData} cx="50%" cy="50%" labelLine={false} label={({ name, value }) => `${name}: ${value}`} outerRadius={100} fill="#8884d8" dataKey="value">
-                  {paymentData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #dc2626', color: '#f5f5f5' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Geographic Distribution */}
-      <Card className="shadow-lg mb-8 bg-gray-900 border-gray-800">
-        <CardHeader>
-          <CardTitle className="text-white">Sales by State (Top 10)</CardTitle>
-          <CardDescription className="text-gray-400">Geographic distribution of Porsche sales</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={stateData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#3a3a3a" />
-              <XAxis type="number" tick={{ fontSize: 12, fill: '#a0a0a0' }} />
-              <YAxis dataKey="name" type="category" width={50} tick={{ fontSize: 12, fill: '#a0a0a0' }} />
-              <Tooltip contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #dc2626', color: '#f5f5f5' }} />
-              <Bar dataKey="value" fill="#dc2626" radius={[0, 8, 8, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      {/* Recent Sales Table */}
-      <Card className="shadow-lg bg-gray-900 border-gray-800">
-        <CardHeader>
-          <CardTitle className="text-white">Recent Sales</CardTitle>
-          <CardDescription className="text-gray-400">Latest transactions</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-gray-700">
-                <tr>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-300">ID</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-300">Date</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-300">Customer</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-300">Model</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-300">Price</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-300">State</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-300">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredData.slice(-10).map((sale: any, idx: number) => (
-                  <tr key={idx} className="border-b border-gray-800 hover:bg-gray-800 transition-colors">
-                    <td className="py-3 px-4 text-gray-100">{sale.sale_id}</td>
-                    <td className="py-3 px-4 text-gray-400">{sale.DataDaVendaSanitizada}</td>
-                    <td className="py-3 px-4 text-gray-400">{sale.nome_do_cliente}</td>
-                    <td className="py-3 px-4 font-medium text-gray-100">{sale.PorscheModelSanitized}</td>
-                    <td className="py-3 px-4 text-gray-100">${sale.Preço_de_vendaSanitizado?.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
-                    <td className="py-3 px-4 text-gray-400">{sale.EstadoSanitizado}</td>
-                    <td className="py-3 px-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        sale.Status_de_entrega_higienizado === 'Entregue' 
-                          ? 'bg-red-900 text-red-200' 
-                          : sale.Status_de_entrega_higienizado === 'Em trânsito'
-                          ? 'bg-gray-700 text-gray-200'
-                          : 'bg-gray-600 text-gray-200'
-                      }`}>
-                        {sale.Status_de_entrega_higienizado}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <label className="text-xs text-gray-400">Data inicial<input aria-label="Data inicial" type="date" value={startDate} onChange={(event) => { setStartDate(event.target.value); setPage(1); }} className={`${inputClass} mt-1.5`} /></label>
+            <label className="text-xs text-gray-400">Data final<input aria-label="Data final" type="date" value={endDate} onChange={(event) => { setEndDate(event.target.value); setPage(1); }} className={`${inputClass} mt-1.5`} /></label>
+            <label className="text-xs text-gray-400">Estado<select aria-label="Filtrar por estado" value={state} onChange={(event) => { setState(event.target.value); setPage(1); }} className={`${inputClass} mt-1.5`}><option value="">Todos os estados</option>{states.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+            <label className="text-xs text-gray-400">Modelo<select aria-label="Filtrar por modelo" value={model} onChange={(event) => { setModel(event.target.value); setPage(1); }} className={`${inputClass} mt-1.5`}><option value="">Todos os modelos</option>{models.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+            <label className="text-xs text-gray-400">Busca livre<span className="relative mt-1.5 block"><Search size={15} className="absolute left-3 top-3 text-gray-500" /><input aria-label="Buscar vendas" type="search" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Cliente, ID, modelo…" className={`${inputClass} pl-9`} /></span></label>
           </div>
-        </CardContent>
-      </Card>
+        </section>
 
-      {/* Footer */}
-      <div className="mt-12 pt-8 border-t border-gray-800 text-center text-sm text-gray-500">
-        <p>Data sourced from cleaned and sanitized Porsche sales records • Last updated today</p>
+        <section className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Indicadores de vendas">
+          <MetricCard label="Vendas totais" value={compactCurrency.format(metrics.revenue)} detail={`${metrics.count} registros no filtro`} icon={DollarSign} />
+          <MetricCard label="Ticket médio" value={currency.format(metrics.average)} detail="Valor médio por veículo" icon={CarFront} />
+          <MetricCard label="Veículos entregues" value={`${metrics.delivered}`} detail={`${metrics.deliveryRate.toFixed(1)}% dos registros filtrados`} icon={Truck} />
+          <MetricCard label="Estados com vendas" value={`${new Set(filteredSales.map((sale) => sale.EstadoSanitizado).filter((item) => item && item !== "INVÁLIDO")).size}`} detail="Estados presentes no resultado" icon={MapPin} />
+        </section>
+
+        <section className="mb-6 grid gap-4 lg:grid-cols-2" aria-label="Gráficos de vendas">
+          <ChartPanel title="Modelos mais vendidos" subtitle="Quantidade de registros por modelo (top 6)">
+            <ResponsiveContainer width="100%" height="100%"><BarChart data={modelChart} margin={{ top: 8, right: 8, left: -18, bottom: 8 }}><CartesianGrid stroke="#ffffff12" vertical={false} /><XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} interval={0} angle={-20} textAnchor="end" height={55} /><YAxis allowDecimals={false} tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} /><Tooltip contentStyle={{ background: "#17191b", border: "1px solid #3f4144", borderRadius: 10 }} /><Bar dataKey="vendas" name="Vendas" fill="#d71920" radius={[5, 5, 0, 0]} /></BarChart></ResponsiveContainer>
+          </ChartPanel>
+          <ChartPanel title="Preço médio por modelo" subtitle="Preço médio em dólares (top 8 modelos)">
+            <ResponsiveContainer width="100%" height="100%"><LineChart data={priceChart} margin={{ top: 8, right: 10, left: 4, bottom: 8 }}><CartesianGrid stroke="#ffffff12" vertical={false} /><XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 10 }} axisLine={false} tickLine={false} interval={0} angle={-25} textAnchor="end" height={60} /><YAxis tickFormatter={(value: number) => `$${Math.round(value / 1000)}k`} tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} width={48} /><Tooltip formatter={(value) => currency.format(Number(value))} contentStyle={{ background: "#17191b", border: "1px solid #3f4144", borderRadius: 10 }} /><Line type="monotone" dataKey="preço" name="Preço médio" stroke="#e04b51" strokeWidth={2.5} dot={{ fill: "#e04b51", r: 3 }} /></LineChart></ResponsiveContainer>
+          </ChartPanel>
+          <ChartPanel title="Status de entrega" subtitle="Distribuição dos pedidos filtrados">
+            <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={deliveryChart} dataKey="value" nameKey="name" innerRadius={58} outerRadius={96} paddingAngle={2}>{deliveryChart.map((entry, index) => <Cell key={entry.name} fill={chartColors[index % chartColors.length]} />)}</Pie><Tooltip contentStyle={{ background: "#17191b", border: "1px solid #3f4144", borderRadius: 10 }} /><Legend verticalAlign="bottom" height={40} wrapperStyle={{ color: "#a1a1aa", fontSize: 11 }} /></PieChart></ResponsiveContainer>
+          </ChartPanel>
+          <ChartPanel title="Vendas por estado" subtitle="Estados com maior número de registros (top 8)">
+            <ResponsiveContainer width="100%" height="100%"><BarChart data={stateChart} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}><CartesianGrid stroke="#ffffff12" horizontal={false} /><XAxis type="number" allowDecimals={false} tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} /><YAxis type="category" dataKey="name" width={44} tick={{ fill: "#d1d5db", fontSize: 11 }} axisLine={false} tickLine={false} /><Tooltip contentStyle={{ background: "#17191b", border: "1px solid #3f4144", borderRadius: 10 }} /><Bar dataKey="vendas" name="Vendas" fill="#d71920" radius={[0, 5, 5, 0]} /></BarChart></ResponsiveContainer>
+          </ChartPanel>
+        </section>
+
+        <section className={`${panelClass} overflow-hidden`} aria-labelledby="sales-table-title">
+          <div className="flex flex-wrap items-end justify-between gap-3 border-b border-white/10 p-5">
+            <div><h2 id="sales-table-title" className="font-semibold text-white">Registros de vendas</h2><p className="mt-1 text-xs text-gray-500">Ordenados do ID mais recente para o mais antigo</p></div>
+            <span className="inline-flex items-center gap-1.5 text-xs text-gray-500"><CalendarDays size={14} /> {filteredSales.length} resultados</span>
+          </div>
+          {visibleSales.length ? <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left text-sm"><thead className="bg-white/[0.025] text-[11px] uppercase tracking-wider text-gray-500"><tr><th className="px-5 py-3 font-medium">ID</th><th className="px-5 py-3 font-medium">Data</th><th className="px-5 py-3 font-medium">Cliente</th><th className="px-5 py-3 font-medium">Modelo</th><th className="px-5 py-3 font-medium">Preço (USD)</th><th className="px-5 py-3 font-medium">Estado</th><th className="px-5 py-3 font-medium">Entrega</th></tr></thead><tbody className="divide-y divide-white/[0.06]">{visibleSales.map((sale) => <tr key={sale.sale_id} className="transition hover:bg-white/[0.025]"><td className="px-5 py-3.5 text-gray-500">#{sale.sale_id}</td><td className="px-5 py-3.5 whitespace-nowrap text-gray-400">{formatDate(sale.DataDaVendaSanitizada)}</td><td className="px-5 py-3.5 text-gray-300">{sale.nome_do_cliente || "—"}</td><td className="px-5 py-3.5 font-medium text-white">{sale.PorscheModelSanitized || "—"}</td><td className="px-5 py-3.5 whitespace-nowrap font-medium text-gray-200">{currency.format(Number(sale.Preço_de_vendaSanitizado) || 0)}</td><td className="px-5 py-3.5 text-gray-400">{sale.EstadoSanitizado || "—"}</td><td className="px-5 py-3.5"><span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${sale.Status_de_entrega_higienizado === "Entregue" ? "bg-emerald-500/10 text-emerald-300" : sale.Status_de_entrega_higienizado === "Cancelado" ? "bg-red-500/10 text-red-300" : "bg-amber-500/10 text-amber-300"}`}>{sale.Status_de_entrega_higienizado || "Sem status"}</span></td></tr>)}</tbody></table></div> : <div className="p-12 text-center text-sm text-gray-500">Nenhuma venda encontrada com esses filtros.</div>}
+          <div className="flex items-center justify-between gap-3 border-t border-white/10 px-5 py-4 text-xs text-gray-500"><span>Página {page} de {pageCount}</span><div className="flex gap-2"><button aria-label="Página anterior" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} className="rounded-lg border border-white/10 p-2 text-gray-300 enabled:hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"><ChevronLeft size={16} /></button><button aria-label="Próxima página" disabled={page >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))} className="rounded-lg border border-white/10 p-2 text-gray-300 enabled:hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"><ChevronRight size={16} /></button></div></div>
+        </section>
+
+        <footer className="mt-6 flex flex-col gap-1 border-t border-white/10 pt-5 text-xs text-gray-600 sm:flex-row sm:justify-between"><span>Porsche Sales Insights · Painel demonstrativo</span><span>Valores em USD · {sales.length} registros carregados localmente</span></footer>
       </div>
-    </div>
+    </main>
   );
 }
